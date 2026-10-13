@@ -1,9 +1,10 @@
 import os
+import argparse
+
 from dotenv import load_dotenv
 from openai import OpenAI
 
-def main():
-    print("Hello from ai-agent!")
+def main() -> None:
     load_dotenv()
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if api_key is None:
@@ -14,16 +15,34 @@ def main():
         api_key=api_key,
     )
 
+    parser = argparse.ArgumentParser(description="Chatbot")
+    parser.add_argument("user_prompt", type=str, help="User prompt")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
+    args = parser.parse_args()
+
+    messages = [
+        {"role": "user", "content": args.user_prompt},
+    ]
+
+    verbose = args.verbose
+
+    generate_content(client, messages, verbose)
+
+def generate_content(client: OpenAI, messages: list, verbose: bool) -> None:
+
     response = client.chat.completions.create(
         model="openrouter/free",
-        messages=[
-            {
-                "role": "user",
-                "content": "Why is Boot.dev such a great place to learn backend development? Use one paragraph maximum.",
-            }
-        ],
+        messages=messages,
     )
 
+    if not response.usage:
+        raise RuntimeError("Error in generating response")
+
+    if verbose:
+        print(f"User prompt: {messages[-1]["content"]}")
+        print(f"Prompt tokens: {response.usage.prompt_tokens}")
+        print(f"Response tokens: {response.usage.completion_tokens}")
+    print("Response:")
     print(response.choices[0].message.content)
 
 if __name__ == "__main__":
