@@ -1,8 +1,11 @@
 import os
 import argparse
+import json
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from functions.prompts import system_prompt
+from functions.call_function import available_functions, call_function
 
 def main() -> None:
     load_dotenv()
@@ -21,6 +24,7 @@ def main() -> None:
     args = parser.parse_args()
 
     messages = [
+        {"role": "system", "content": system_prompt},
         {"role": "user", "content": args.user_prompt},
     ]
 
@@ -33,6 +37,7 @@ def generate_content(client: OpenAI, messages: list, verbose: bool) -> None:
     response = client.chat.completions.create(
         model="openrouter/free",
         messages=messages,
+        tools=available_functions,
     )
 
     if not response.usage:
@@ -43,7 +48,21 @@ def generate_content(client: OpenAI, messages: list, verbose: bool) -> None:
         print(f"Prompt tokens: {response.usage.prompt_tokens}")
         print(f"Response tokens: {response.usage.completion_tokens}")
     print("Response:")
-    print(response.choices[0].message.content)
+
+    message = response.choices[0].message
+
+    if not message.tool_calls:
+        print(message.content)
+    else:
+        for tool_call in message.tool_calls:
+            function_args = json.loads(tool_call.function.arguments or "{}")
+            print(f"Calling function: {tool_call.function.name} "
+                  f"({function_args})")
+            result_message = call_function(tool_call, verbose)
+            if result_message["content"] is None:
+                raise Exception()
+            if verbose:
+                print(f"-> {result_message['content']}")
 
 if __name__ == "__main__":
     main()
