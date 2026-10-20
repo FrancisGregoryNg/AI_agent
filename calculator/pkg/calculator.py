@@ -1,7 +1,4 @@
-# calculator/pkg/calculator.py
-
 from collections.abc import Callable
-
 
 class Calculator:
     def __init__(self) -> None:
